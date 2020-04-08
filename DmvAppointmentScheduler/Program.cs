@@ -38,26 +38,65 @@ namespace DmvAppointmentScheduler
         }
         static void Calculation(CustomerList customers, TellerList tellers)
         {
-            // Your code goes here .....
-            // Re-write this method to be more efficient instead of a assigning all customers to the same teller
-            foreach(Customer customer in customers.Customer)
+            int count = 0;
+
+            double total = customers.Customer.Sum(item => Convert.ToInt32(item.duration));
+            double average = total / tellers.Teller.Count;
+
+            //When the dmv opens each teller is assigned with a customer
+            bool isFirstLoop = true;
+
+ 
+            foreach (Customer customer in customers.Customer)
             {
-                var appointment = new Appointment(customer, tellers.Teller[0]);
+                if (count == 149)
+                {
+                    isFirstLoop = false;
+                }
+
+                if (!isFirstLoop)
+                {
+                    //The customer will be sent to the next available Teller with less duration
+                    //So that the teller is not waiting for the other teller till all the customers are done.
+                    IEnumerable<TellerAppointment> tellerAppointments = TellerTotalDuration();
+                    var minDurationTellerDuration = tellerAppointments.OrderBy(mt => mt.totalDuration);
+                    var minDurationTeller = minDurationTellerDuration.FirstOrDefault().teller.id;
+                    count = tellers.Teller.FindIndex(t => t.id == minDurationTeller);
+   
+                }
+
+                var appointment = new Appointment(customer, tellers.Teller[count]);
                 appointmentList.Add(appointment);
+
+                //First 150 customers will be assigned to 150 Tellers
+                if (isFirstLoop)
+                {
+                    count++;
+                }
+
             }
         }
         static void OutputTotalLengthToConsole()
         {
-            var tellerAppointments =
+            IEnumerable<TellerAppointment> tellerAppointments = TellerTotalDuration();
+
+            var max = tellerAppointments.OrderBy(i => i.totalDuration);
+            foreach (var m in max)
+                Console.WriteLine("Teller " + m.teller.id + " will work for " + m.totalDuration + " minutes!");
+        }
+
+        public static IEnumerable<TellerAppointment> TellerTotalDuration()
+        {
+            IEnumerable<TellerAppointment> tellerDuration =
                 from appointment in appointmentList
                 group appointment by appointment.teller into tellerGroup
-                select new
+                select new TellerAppointment
                 {
                     teller = tellerGroup.Key,
                     totalDuration = tellerGroup.Sum(x => x.duration),
                 };
-            var max = tellerAppointments.OrderBy(i => i.totalDuration).LastOrDefault();
-            Console.WriteLine("Teller " + max.teller.id + " will work for " + max.totalDuration + " minutes!");
+
+            return tellerDuration;
         }
 
     }
